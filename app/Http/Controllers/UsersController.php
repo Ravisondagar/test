@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Former;
 use Validator;
 use App\UserHobby;
+use App\Hobby;
 
 class UsersController extends Controller
 {
@@ -17,7 +18,8 @@ class UsersController extends Controller
      */
     public function index()
     {
-        return view('index');
+        $hobbies = Hobby::all()->pluck('id','name');
+        return view('index',compact('hobbies'));
     }
 
     /**
@@ -95,8 +97,8 @@ class UsersController extends Controller
     public function show($id)
     {
         $user = User::find($id);
-        dd($user);
-        return view('show',compact($user));
+        //dd($user->hobbies[0]->name);
+        return view('show',compact('user'));
     }
 
     /**
@@ -105,9 +107,16 @@ class UsersController extends Controller
      * @param  \App\user  $user
      * @return \Illuminate\Http\Response
      */
-    public function edit(user $user)
+    public function edit($id)
     {
-        //
+        $user = User::find($id);
+        $hobbies = Hobby::all()->pluck('id','name');
+        $user_hobby = [];
+        foreach ($user->hobbies as $value) {
+            array_push($user_hobby, $value->name);
+        }
+        Former::populate($user);
+        return view('edit',compact('user','hobbies','user_hobby'));
     }
 
     /**
@@ -117,9 +126,58 @@ class UsersController extends Controller
      * @param  \App\user  $user
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, user $user)
+    public function update(Request $request, $id)
     {
-        //
+        $rules=[
+          'name' => 'required',
+          'middlename' => 'required',
+          'last_name' => 'required',
+          'email' => 'required|email',
+          'city' => 'required',
+          'state' => 'required',
+          'country' => 'required',
+          'dob' => 'required',
+        ];
+
+        // Messages for validation
+        $messages=[
+          'name.required' => 'Please enter first name.',
+          'last_name.required' => 'Please enter last name.',
+          'email.required' => 'Please enter email.',
+        ];
+        
+        // Make validator with rules and messages
+        $validator = Validator::make($request->all(),$rules,$messages);
+        // If validator fails than it will redirect back and gives error otherwise go to try catch section
+        if ($validator->fails()) { 
+          Former::withErrors($validator);
+          return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $user = User::find($id);
+        $user->name=$request->get('name');
+        $user->middlename=$request->get('middlename');
+        $user->last_name=$request->get('last_name');
+        $user->email=$request->get('email');
+        $user->city=$request->get('city');
+        $user->state=$request->get('state');
+        $user->country=$request->get('country');
+        $user->dob=$request->get('dob');
+        $user->status=$request->get('status');
+        $user->update();
+        $userhobbys = UserHobby::where('user_id', '=', $id)->get();
+        foreach ($userhobbys as $userhobby) {
+            $userhobby->delete();
+        }
+        $hobby = [];
+        $hobby = $request->get('hobby');
+        foreach ($hobby as $key => $value) {
+            $user_hobby = new UserHobby;
+            $user_hobby->user_id = $user->id;
+            $user_hobby->hobby_id = $value;
+            $user_hobby->save();
+        }
+        return redirect()->route('users.show',$user->id);
     }
 
     /**
@@ -128,8 +186,10 @@ class UsersController extends Controller
      * @param  \App\user  $user
      * @return \Illuminate\Http\Response
      */
-    public function destroy(user $user)
+    public function destroy($id)
     {
-        //
+        $user = User::find($id);
+        $user->delete();
+        return redirect()->route('users.index');
     }
 }

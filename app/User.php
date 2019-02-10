@@ -35,8 +35,19 @@ class User extends Authenticatable
     {
         return [
             'slug' => [
-                'source' => 'name'
+                'source' => 'name',
+                'onUpdate' => true
             ]
         ];
+    }
+
+    public function user_hobbies()
+    {
+        return $this->hasMany('App\UserHobby');
+    }
+
+    public function hobbies()
+    {
+        return $this->belongsToMany('App\Hobby', 'User_Hobbies', 'user_id', 'hobby_id');
     }
 }
